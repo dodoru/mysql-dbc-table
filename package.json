@@ -1,0 +1,26 @@
+{
+  "name": "mysql-dbc-table",
+  "version": "0.0.1",
+  "description": "creating and manipulating MySQL table by inheriting parent class<DbTable> with mysl-dbc",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "keywords": [
+    "nodejs",
+    "mysql",
+    "dbc",
+    "table"
+  ],
+  "dependencies": {
+    "mysql-dbc": "^1.1.0"
+  },
+  "engines": {
+    "node": ">= 8.0"
+  },
+  "bugs": {
+    "url": "https://github.com/dodoru/mysql-dbc-table/issues"
+  },
+  "homepage": "https://github.com/dodoru/mysql-dbc-table#readme",
+  "devDependencies": {}
+}
