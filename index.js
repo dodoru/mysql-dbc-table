@@ -100,9 +100,9 @@ const sqlFormat = (opts = {}, order = {}, limit) => {
             if (key instanceof Array) {
                 key = key.join(',')
             }
-            query += ` ORDER BY \`${key}\` `;
+            query += ` ORDER BY ${key} `;
             if (order.desc) {
-                query += ' desc '
+                query += ' DESC '
             }
         }
     }
@@ -116,6 +116,9 @@ const sqlFormat = (opts = {}, order = {}, limit) => {
 
 
 const dbSqlSync = async (dbc, sql, args) => {
+    /* return:
+        $select => {rows, columns}
+    */
     const func = dbc.withConnection(
         function () {
             return this.conn.query(sql, args)
@@ -125,8 +128,8 @@ const dbSqlSync = async (dbc, sql, args) => {
 
 
 class DbTable {
-    constructor(name, dbc) {
-        this.tablename = name;
+    constructor(tablename, dbc) {
+        this.tablename = tablename;
         if (dbc && dbc instanceof Object) {
             // todo: 更严谨的判定
             this.dbc = dbc;
@@ -234,7 +237,8 @@ class DbTable {
         const func = dbc.withConnection(
             function () {
                 return this.doSelect(sql, args)
-            });
+            }
+        );
         return await func();
     }
 
@@ -257,7 +261,8 @@ class DbTable {
         const func = dbc.withConnection(
             function () {
                 return this.selectManyByFields(tablename, fields, values)
-            });
+            }
+        );
         return await func();
     }
 
@@ -267,7 +272,8 @@ class DbTable {
         const func = dbc.withConnection(
             function () {
                 return this.selectOneByObject(tablename, form);
-            });
+            }
+        );
         return await func();
     }
 
@@ -277,9 +283,7 @@ class DbTable {
         const form = this.constructor.queryForm(filter, ensureNotDeleted);
         const {query, args} = sqlFormat({eq: form}, order, limit);
         const sql = `SELECT * from ${tablename} ${query} ;`;
-        const result = await dbSqlSync(dbc, sql, args);
-        const [rows, columns] = result;
-        return rows;
+        return await this.selectSync(sql, args);
     }
 
     async findOneByFieldsSync(field_keys, field_values) {
@@ -297,7 +301,8 @@ class DbTable {
         const func = dbc.withConnection(
             function () {
                 return this.insertOneObject(tablename, object);
-            });
+            }
+        );
         return await func();
     }
 
@@ -306,7 +311,8 @@ class DbTable {
         const func = dbc.withConnection(
             function () {
                 return this.insertManyObjects(tablename, objects);
-            });
+            }
+        );
         return await func();
     }
 
