@@ -242,6 +242,18 @@ class DbTable {
         return await func();
     }
 
+    async querySync(res = '*', opts = {}, order = {}, limit) {
+        const {dbc, tablename} = this;
+        const {query, args} = sqlFormat(opts, order, limit);
+        const sql = `SELECT ${res} FROM ${tablename} ${query}; `;
+        const func = dbc.withConnection(
+            function () {
+                return this.doSelect(sql, args)
+            }
+        );
+        return await func();
+    }
+
     async countSync(filter = {}, ensureNotDeleted) {
         const {dbc, tablename} = this;
         const form = this.constructor.queryForm(filter, ensureNotDeleted);
