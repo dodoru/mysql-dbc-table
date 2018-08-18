@@ -250,6 +250,17 @@ class DbTable {
         return await func();
     }
 
+    async existSync() {
+        const sql = `
+            SELECT table_name 
+            FROM information_schema.tables
+            WHERE table_schema = ? AND table_name = ? 
+        `;
+        const tbls = await this.selectSync(sql, [this.dbc.config.database, this.tablename]);
+        // expect length === 1;
+        return tbls.length > 0;
+    }
+
     async querySync(qry = {}) {
         const res = qry.res || '*';
         const opts = qry.opts || {};
