@@ -68,6 +68,9 @@ const K_OP = {
     ge: '>=',
     lt: '<',
     le: '<=',
+    in: 'IN',
+    like: 'LIKE',
+    not_in: 'NOT IN',
 };
 
 
@@ -83,7 +86,12 @@ const sqlFormat = (opts = {}, order = {}, limit) => {
         const form = opts[mark];
         let fs = Reflect.ownKeys(form);
         let vs = fs.map(key => form[key]);
-        let q = fs.map(key => ` ${key} ${op} ? `).join(' AND ');
+        let q;
+        if ((op === K_OP.in || op === K_OP.not_in) && vs instanceof Array) {
+            q = fs.map(key => ` ${key} ${op} (?) `).join(' AND ');
+        } else {
+            q = fs.map(key => ` ${key} ${op} ? `).join(' AND ');
+        }
         qs.push(q);
         args.push(...vs);
     }
