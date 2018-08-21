@@ -288,28 +288,24 @@ class DbTable {
     }
 
 
-    async findSync(filter = {}, ensureNotDeleted) {
+    async findSync(filter = {}, ensureNotDeleted, res = '*') {
         const {dbc, tablename} = this;
         const form = this.constructor.queryForm(filter, ensureNotDeleted);
-        const fields = Reflect.ownKeys(form);
-        const values = fields.map(key => form[key]);
-        const func = dbc.withConnection(
-            function () {
-                return this.selectManyByFields(tablename, fields, values)
-            }
-        );
-        return await func();
+        const {query, args} = sqlFormat({eq: form});
+        const sql = `SELECT ${res} FROM ${tablename} ${query};`;
+        const result = await dbSqlSync(dbc, sql, args);
+        const [rows, fields] = result;
+        return rows;
     }
 
-    async findOneSync(filter = {}, ensureNotDeleted) {
+    async findOneSync(filter = {}, ensureNotDeleted, res = '*') {
         const {dbc, tablename} = this;
         const form = this.constructor.queryForm(filter, ensureNotDeleted);
-        const func = dbc.withConnection(
-            function () {
-                return this.selectOneByObject(tablename, form);
-            }
-        );
-        return await func();
+        const {query, args} = sqlFormat({eq: form}, {}, 1);
+        const sql = `SELECT ${res} FROM ${tablename} ${query};`;
+        const result = await dbSqlSync(dbc, sql, args);
+        const [rows, fields] = result;
+        return rows[0] || null;
     }
 
     async findLimitSync(limit = 1, filter = {}, order = {}, ensureNotDeleted) {
