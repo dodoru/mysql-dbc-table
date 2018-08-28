@@ -114,8 +114,10 @@ const sqlFormat = (opts = {}, order = {}, limit) => {
             }
         }
     }
-    limit = parseInt(limit);
-    if (!isNaN(limit) && limit > 0) {
+    if (limit instanceof Array && limit.length <= 2){
+        limit = limit.join(',');
+    }
+    if (limit){
         query += ' LIMIT ? ';
         args.push(limit);
     }
