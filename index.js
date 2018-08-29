@@ -114,12 +114,11 @@ const sqlFormat = (opts = {}, order = {}, limit) => {
             }
         }
     }
-    if (limit instanceof Array && limit.length <= 2){
+    if (limit instanceof Array && limit.length <= 2) {
         limit = limit.join(',');
     }
-    if (limit){
-        query += ' LIMIT ? ';
-        args.push(limit);
+    if (limit) {
+        query += ` LIMIT ${limit} `;
     }
     return {query, args};
 };
