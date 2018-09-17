@@ -415,14 +415,26 @@ class DbTable {
     }
 
     async delSync(filter = {}) {
+        // 软删除：if ('deleted' in this.constructor.fields())
         const updated_form = {deleted: true};
         return await this.updateSync(filter, updated_form);
     }
 
     async reviveSync(filter = {}) {
+        // 软恢复：if ('deleted' in this.constructor.fields())
         const updated_form = {deleted: false};
         return await this.updateSync(filter, updated_form, false);
     }
+
+    async removeSync(filter = {}) {
+        // 硬删除：无法恢复
+        const {dbc, tablename} = this;
+        const form = this.constructor.queryForm(filter, false);
+        const {query, args} = sqlFormat({eq: form});
+        const sql = `DELETE FROM ${tablename} ${query};`;
+        return await await dbSqlSync(dbc, sql, args);
+    }
+
 }
 
 module.exports = {
