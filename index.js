@@ -309,6 +309,20 @@ class DbTable {
         return rows[0] || null;
     }
 
+    async getOr404Sync(filter = {}, ensureNotDeleted, res = '*') {
+        const obj = await this.findOneSync(filter, ensureNotDeleted, res);
+        if (obj === null) {
+            const e = new Error();
+            e.message = `Not Found <${this.tablename}:${filter}>`;
+            e.code = 404;
+            e.errno = 40400;
+            e.sqlState = 'DataNotFound';
+            e.sqlMessage = e.message;
+            throw e;
+        }
+        return obj;
+    }
+
     async findLimitSync(limit = 1, filter = {}, order = {}, ensureNotDeleted) {
         // size: int : 个数
         const {dbc, tablename} = this;
