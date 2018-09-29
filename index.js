@@ -313,8 +313,8 @@ class DbTable {
         const obj = await this.findOneSync(filter, ensureNotDeleted, res);
         if (obj === null) {
             const e = new Error();
-            e.message = `Not Found <${this.tablename}:${filter}>`;
-            e.code = 404;
+            e.message = `Not Found <${this.tablename}:${JSON.stringify(filter)}>`;
+            e.status = 404;
             e.errno = 40400;
             e.sqlState = 'DataNotFound';
             e.sqlMessage = e.message;
