@@ -124,7 +124,7 @@ const sqlFormat = (opts = {}, order = {}, limit) => {
 };
 
 
-const dbSqlSync = async (dbc, sql, args) => {
+const dbSqlAsync = async (dbc, sql, args) => {
     /* return:
         $select => {rows, columns}
     */
@@ -236,12 +236,12 @@ class DbTable {
         return true;
     }
 
-    async sqlSync(sql, args) {
+    async sqlAsync(sql, args) {
         const {dbc, tablename} = this;
-        return await dbSqlSync(dbc, sql, args);
+        return await dbSqlAsync(dbc, sql, args);
     }
 
-    async selectSync(sql, args) {
+    async selectAsync(sql, args) {
         const {dbc, tablename} = this;
         const func = dbc.withConnection(
             function () {
@@ -251,18 +251,18 @@ class DbTable {
         return await func();
     }
 
-    async existSync() {
+    async existAsync() {
         const sql = `
             SELECT table_name 
             FROM information_schema.tables
             WHERE table_schema = ? AND table_name = ? 
         `;
-        const tbls = await this.selectSync(sql, [this.dbc.config.database, this.tablename]);
+        const tbls = await this.selectAsync(sql, [this.dbc.config.database, this.tablename]);
         // expect length === 1;
         return tbls.length > 0;
     }
 
-    async querySync(qry = {}) {
+    async queryAsync(qry = {}) {
         const res = qry.res || '*';
         const opts = qry.opts || {};
         const order = qry.order || {};
@@ -278,39 +278,39 @@ class DbTable {
         return await func();
     }
 
-    async countSync(filter = {}, ensureNotDeleted) {
+    async countAsync(filter = {}, ensureNotDeleted) {
         const {dbc, tablename} = this;
         const form = this.constructor.queryForm(filter, ensureNotDeleted);
         const {query, args} = sqlFormat({eq: form});
         const sql = `SELECT count(*) as count FROM ${tablename} ${query};`;
-        const result = await dbSqlSync(dbc, sql, args);
+        const result = await dbSqlAsync(dbc, sql, args);
         const [rows, columns] = result;
         return rows[0].count;
     }
 
 
-    async findSync(filter = {}, ensureNotDeleted, res = '*') {
+    async findAsync(filter = {}, ensureNotDeleted, res = '*') {
         const {dbc, tablename} = this;
         const form = this.constructor.queryForm(filter, ensureNotDeleted);
         const {query, args} = sqlFormat({eq: form});
         const sql = `SELECT ${res} FROM ${tablename} ${query};`;
-        const result = await dbSqlSync(dbc, sql, args);
+        const result = await dbSqlAsync(dbc, sql, args);
         const [rows, fields] = result;
         return rows;
     }
 
-    async findOneSync(filter = {}, ensureNotDeleted, res = '*') {
+    async findOneAsync(filter = {}, ensureNotDeleted, res = '*') {
         const {dbc, tablename} = this;
         const form = this.constructor.queryForm(filter, ensureNotDeleted);
         const {query, args} = sqlFormat({eq: form}, {}, 1);
         const sql = `SELECT ${res} FROM ${tablename} ${query};`;
-        const result = await dbSqlSync(dbc, sql, args);
+        const result = await dbSqlAsync(dbc, sql, args);
         const [rows, fields] = result;
         return rows[0] || null;
     }
 
-    async getOr404Sync(filter = {}, ensureNotDeleted, res = '*') {
-        const obj = await this.findOneSync(filter, ensureNotDeleted, res);
+    async getOr404Async(filter = {}, ensureNotDeleted, res = '*') {
+        const obj = await this.findOneAsync(filter, ensureNotDeleted, res);
         if (obj === null) {
             const e = new Error();
             e.message = `Not Found <${this.tablename}:${JSON.stringify(filter)}>`;
@@ -323,16 +323,16 @@ class DbTable {
         return obj;
     }
 
-    async findLimitSync(limit = 1, filter = {}, order = {}, ensureNotDeleted) {
+    async findLimitAsync(limit = 1, filter = {}, order = {}, ensureNotDeleted) {
         // size: int : 个数
         const {dbc, tablename} = this;
         const form = this.constructor.queryForm(filter, ensureNotDeleted);
         const {query, args} = sqlFormat({eq: form}, order, limit);
         const sql = `SELECT * from ${tablename} ${query} ;`;
-        return await this.selectSync(sql, args);
+        return await this.selectAsync(sql, args);
     }
 
-    async findOneByFieldsSync(field_keys, field_values) {
+    async findOneByFieldsAsync(field_keys, field_values) {
         const {dbc, tablename} = this;
         const func = dbc.withConnection(
             function () {
@@ -342,7 +342,7 @@ class DbTable {
         return await func();
     }
 
-    async addSync(object) {
+    async addAsync(object) {
         const {dbc, tablename} = this;
         const func = dbc.withConnection(
             function () {
@@ -352,7 +352,7 @@ class DbTable {
         return await func();
     }
 
-    async addManySync(objects) {
+    async addManyAsync(objects) {
         const {dbc, tablename} = this;
         const func = dbc.withConnection(
             function () {
@@ -362,7 +362,7 @@ class DbTable {
         return await func();
     }
 
-    async updateSync(filter = {}, updated_form = {}, ensureNotDeleted) {
+    async updateAsync(filter = {}, updated_form = {}, ensureNotDeleted) {
         const {dbc, tablename} = this;
         const form = this.constructor.queryForm(filter, ensureNotDeleted);
         const filter_fields = Reflect.ownKeys(form);
@@ -385,54 +385,54 @@ class DbTable {
         }
     }
 
-    async ensureSync(object) {
-        const item = await this.findOneSync(object, false);
+    async ensureAsync(object) {
+        const item = await this.findOneAsync(object, false);
         if (item === null) {
-            return await this.addSync(object);
+            return await this.addAsync(object);
         } else {
             if (item.deleted) {
-                return await this.reviveSync(item);
+                return await this.reviveAsync(item);
             }
         }
     }
 
-    async upsertSync(filter = {}, updated_form = {}) {
-        const item = await this.findOneSync(filter, false);
+    async upsertAsync(filter = {}, updated_form = {}) {
+        const item = await this.findOneAsync(filter, false);
         let op, state, data;
         if (item === null) {
             op = 'insert';
             data = Object.assign(filter, updated_form);
-            state = await this.addSync(data);
+            state = await this.addAsync(data);
         } else {
             if (item.deleted) {
                 updated_form.deleted = false;
             }
             op = 'update';
             data = Object.assign({}, item, updated_form);
-            state = await this.updateSync(filter, updated_form, false);
+            state = await this.updateAsync(filter, updated_form, false);
         }
         return {op, data, state}
     }
 
-    async delSync(filter = {}) {
+    async delAsync(filter = {}) {
         // 软删除：if ('deleted' in this.constructor.fields())
         const updated_form = {deleted: true};
-        return await this.updateSync(filter, updated_form);
+        return await this.updateAsync(filter, updated_form);
     }
 
-    async reviveSync(filter = {}) {
+    async reviveAsync(filter = {}) {
         // 软恢复：if ('deleted' in this.constructor.fields())
         const updated_form = {deleted: false};
-        return await this.updateSync(filter, updated_form, false);
+        return await this.updateAsync(filter, updated_form, false);
     }
 
-    async removeSync(filter = {}) {
+    async removeAsync(filter = {}) {
         // 硬删除：无法恢复
         const {dbc, tablename} = this;
         const form = this.constructor.queryForm(filter, false);
         const {query, args} = sqlFormat({eq: form});
         const sql = `DELETE FROM ${tablename} ${query};`;
-        return await await dbSqlSync(dbc, sql, args);
+        return await await dbSqlAsync(dbc, sql, args);
     }
 
 }
@@ -444,6 +444,6 @@ module.exports = {
     initDbc: initDbc,
     dbcPool: dbcPool,
     sqlFormat: sqlFormat,
-    dbSqlSync: dbSqlSync,
+    dbSqlAsync: dbSqlAsync,
     DbTable: DbTable,
 };
