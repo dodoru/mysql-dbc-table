@@ -47,7 +47,7 @@ const sql_create_table = `
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;
 
-const step0 = await mysql_dbc_table.dbSqlSync(dbc, sql_create_table);
+const step0 = await mysql_dbc_table.dbSqlAsync(dbc, sql_create_table);
 
 ```
 
@@ -67,10 +67,10 @@ class User extends DbTable {
 }
 
 const db_user = new User('user', dbc);
-const existed = await db_user.existSync();
+const existed = await db_user.existAsync();
 
-const users = await db_user.findSync();
-const user = await db_user.findOneSync();
+const users = await db_user.findAsync();
+const user = await db_user.findOneAsync();
 ```
 
 ##### 更多请参阅 test.js
