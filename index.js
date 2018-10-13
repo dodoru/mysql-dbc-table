@@ -289,20 +289,20 @@ class DbTable {
     }
 
 
-    async findAsync(filter = {}, ensureNotDeleted, res = '*') {
+    async findAsync(filter = {}, ensureNotDeleted, res = '*', order = {}, limit) {
         const {dbc, tablename} = this;
         const form = this.constructor.queryForm(filter, ensureNotDeleted);
-        const {query, args} = sqlFormat({eq: form});
+        const {query, args} = sqlFormat({eq: form}, order, limit);
         const sql = `SELECT ${res} FROM ${tablename} ${query};`;
         const result = await dbSqlAsync(dbc, sql, args);
         const [rows, fields] = result;
         return rows;
     }
 
-    async findOneAsync(filter = {}, ensureNotDeleted, res = '*') {
+    async findOneAsync(filter = {}, ensureNotDeleted, res = '*', order = {}) {
         const {dbc, tablename} = this;
         const form = this.constructor.queryForm(filter, ensureNotDeleted);
-        const {query, args} = sqlFormat({eq: form}, {}, 1);
+        const {query, args} = sqlFormat({eq: form}, order, 1);
         const sql = `SELECT ${res} FROM ${tablename} ${query};`;
         const result = await dbSqlAsync(dbc, sql, args);
         const [rows, fields] = result;
