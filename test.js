@@ -24,10 +24,13 @@ const testMain = async () => {
 
     // init table
     const db_user = new User('user', dbc);
-
+    log(DbTable.name, User.name);
     log('info', db_user);
     log('toString', String(db_user));
     log('toJSON', JSON.stringify(db_user));
+    log('showTables', await dbc.showTablesAsync());
+    log('showColumns', await db_user.showColumnsAsync())
+    log(User.ensureFieldOfDeleted());
 
     const existed = await db_user.existAsync();
     if (!existed) {
@@ -116,6 +119,8 @@ const testMain = async () => {
     const ds = await db_user.queryAsync(qry);
     console.log(222, ds);
 
+    const d2 = await db_user.upsertManyAsync(ds);
+    console.log(333, d2)
 };
 
 
