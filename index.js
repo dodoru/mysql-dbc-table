@@ -147,6 +147,22 @@ class DbTable {
         }
     }
 
+    info() {
+        const model = this.constructor.name;
+        const tablename = this.tablename;
+        const {host, port, user, database} = this.dbc.config;
+        return {model, tablename, database, host, port, user}
+    }
+
+    toString() {
+        const {model, tablename, database, host, port, user} = this.info();
+        return `[DbTable:${model}:${tablename}] dbc=${user}@${host}:${port}/${database}`;
+    }
+
+    toJSON() {
+        return this.toString();
+    }
+
     static fields() {
         // require super in subclass
         return {

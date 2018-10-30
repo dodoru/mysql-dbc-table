@@ -24,6 +24,11 @@ const testMain = async () => {
 
     // init table
     const db_user = new User('user', dbc);
+
+    log('info', db_user);
+    log('toString', String(db_user));
+    log('toJSON', JSON.stringify(db_user));
+
     const existed = await db_user.existAsync();
     if (!existed) {
         const sql_create_table = `
