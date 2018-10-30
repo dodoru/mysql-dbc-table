@@ -23,6 +23,27 @@ const initDbc = (config = {}) => {
     dbc.init(cfg);
     dbc.config = cfg;
     dbc.uri = `mysql://${cfg.user}:${cfg.password}@${cfg.host}:${cfg.port}/${cfg.database}`;
+
+    dbc.showTablesAsync = async () => {
+        const sql = `show tables from ${cfg.database}`;
+        const func = dbc.withConnection(
+            function () {
+                return this.conn.query(sql)
+            });
+        const result = await func();
+        const [rows, columns] = result;
+        const name = columns[0].name;
+        return rows.map(m => m[name]);
+    };
+
+    dbc.executeSqlAsync = async (sql, args) => {
+        const func = dbc.withConnection(
+            function () {
+                return this.conn.query(sql, args)
+            });
+        return await func();
+    };
+
     return dbc;
 };
 
