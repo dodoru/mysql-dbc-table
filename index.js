@@ -198,6 +198,14 @@ class DbTable {
         }
     }
 
+    static ensureFieldOfDeleted() {
+        const is_existed = 'deleted' in this.fields();
+        const name = this.name;
+        if (!is_existed) {
+            throw new Error(`DbTable<${name}> unknown field "deleted"`);
+        }
+    }
+
     async showColumnsAsync() {
         const dbc = this.dbc;
         const tablename = this.tablename;
@@ -460,14 +468,44 @@ class DbTable {
         return {op, data, state}
     }
 
+    async upsertManyAsync(objects, strict = true) {
+        // @strict: strictForm
+        this.constructor.ensureFieldOfDeleted();
+        if (objects instanceof Array) {
+            const count = objects.length;
+            if (count === 0) {
+                throw new Error('no objects to update')
+            }
+
+            if (strict) {
+                objects = objects.map(obj => this.constructor.strictForm(obj))
+            }
+
+            const {dbc, tablename} = this;
+            const fields = Reflect.ownKeys(objects[0]);
+            const values = objects.map(obj => fields.map(key => obj[key]));
+
+            const fs = `(${fields.join(', ')})`;
+            const vs = `(${fields.map(m => "?").join(', ')})`;
+            const lines = new Array(count).fill(vs);
+            const sql = `INSERT INTO ${tablename} ${fs} VALUES ${lines.join(',')} ON DUPLICATE KEY UPDATE deleted = false;`;
+            const args = [].concat.apply([], values);
+            return await dbSqlAsync(dbc, sql, args);
+        } else {
+            throw new TypeError('objects is not instanceof Array');
+        }
+    }
+
     async delAsync(filter = {}) {
-        // 软删除：if ('deleted' in this.constructor.fields())
+        // 软删除：require set field of "deleted"
+        this.constructor.ensureFieldOfDeleted();
         const updated_form = {deleted: true};
         return await this.updateAsync(filter, updated_form);
     }
 
     async reviveAsync(filter = {}) {
-        // 软恢复：if ('deleted' in this.constructor.fields())
+        // 软恢复：require set field of "deleted"
+        this.constructor.ensureFieldOfDeleted();
         const updated_form = {deleted: false};
         return await this.updateAsync(filter, updated_form, false);
     }
