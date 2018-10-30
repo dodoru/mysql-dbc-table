@@ -198,6 +198,15 @@ class DbTable {
         }
     }
 
+    async showColumnsAsync() {
+        const dbc = this.dbc;
+        const tablename = this.tablename;
+        const sql = `show columns from ${tablename}`;
+        const result = await dbSqlAsync(dbc, sql);
+        const [rows, cols] = result;
+        return rows;
+    }
+
     static toData(row) {
         const fields = this.fields();
         const data = {};
