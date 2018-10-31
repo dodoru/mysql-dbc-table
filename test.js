@@ -30,7 +30,6 @@ const testMain = async () => {
     log('toJSON', JSON.stringify(db_user));
     log('showTables', await dbc.showTablesAsync());
     log('showColumns', await db_user.showColumnsAsync())
-    log(User.ensureFieldOfDeleted());
 
     const existed = await db_user.existAsync();
     if (!existed) {
@@ -107,7 +106,7 @@ const testMain = async () => {
         opts: {
             ge: {id: 2,},
             le: {id: 6,},
-            eq: {deleted: false},
+            eq: {deleted: true},
             in: {id: [1, 2, 4, 5, 7]},
             like: {name: 'tester%'}
         },
@@ -119,8 +118,26 @@ const testMain = async () => {
     const ds = await db_user.queryAsync(qry);
     console.log(222, ds);
 
-    const d2 = await db_user.upsertManyAsync(ds);
-    console.log(333, d2)
+    const d3 = await db_user.upsertManyAsync(ds);
+    console.log(333, d3)
+
+    const d4 = await db_user.replaceManyAsync(ds);
+    console.log(444, d4);
+
+    const d5 = await db_user.replaceOneAsync({name: "admin"});
+    console.log(555, d5);
+    let d5_id = d5.insertId;
+    const d6 = await db_user.replaceOneAsync({name: `admin_${d5_id}`, id: d5_id});
+    console.log(666, d6);
+
+    const d7 = await db_user.disableAsync({id:d5_id});
+    console.log(777, d7)
+
+    const d8 = await db_user.enableAsync({id:d5_id});
+    console.log(888, d8)
+
+    const d9 = await db_user.deleteAsync({id:d5_id});
+    console.log(999, d9)
 };
 
 
