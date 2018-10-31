@@ -5,6 +5,7 @@
 
 const mysql_dbc = require('mysql-dbc');
 
+const DbcName = 'mysql-dbc';
 
 const initDbc = (config = {}) => {
     const cfg = {
@@ -20,6 +21,7 @@ const initDbc = (config = {}) => {
     };
 
     const dbc = mysql_dbc.createDbc();
+    dbc._cls = DbcName;
     dbc.init(cfg);
     dbc.config = cfg;
     dbc.uri = `mysql://${cfg.user}:${cfg.password}@${cfg.host}:${cfg.port}/${cfg.database}`;
@@ -159,12 +161,13 @@ const dbSqlAsync = async (dbc, sql, args) => {
 
 class DbTable {
     constructor(tablename, dbc) {
+        this._cls = this.constructor.name;
         this.tablename = tablename;
-        if (dbc && dbc instanceof Object) {
+        if (dbc && dbc instanceof Object && dbc._cls === DbcName) {
             // todo: 更严谨的判定
             this.dbc = dbc;
         } else {
-            throw new Error('[mysql], init DbTable with invalid dbc ...')
+            throw new Error(`[DbTable:${this._cls}:${tablename}], init DbTable with invalid dbc ...`)
         }
     }
 
@@ -198,21 +201,53 @@ class DbTable {
         }
     }
 
-    static ensureFieldOfDeleted() {
-        const is_existed = 'deleted' in this.fields();
-        const name = this.name;
-        if (!is_existed) {
-            throw new Error(`DbTable<${name}> unknown field "deleted"`);
-        }
-    }
-
     async showColumnsAsync() {
+        /*
+         samples of rows and cols
+         col = {
+            catalog: 'def',
+            schema: 'information_schema',
+            name: 'Field',
+            orgName: 'COLUMN_NAME',
+            table: 'COLUMNS',
+            orgTable: 'COLUMNS',
+            characterSet: 224,
+            columnLength: 256,
+            columnType: 253,
+            flags: 1,
+            decimals: 0
+         },
+         row = TextRow {
+            Field: 'id',
+            Type: 'int(11)',
+            Null: 'NO',
+            Key: 'PRI',
+            Default: null,
+            Extra: 'auto_increment'
+         },
+        * */
         const dbc = this.dbc;
         const tablename = this.tablename;
         const sql = `show columns from ${tablename}`;
         const result = await dbSqlAsync(dbc, sql);
         const [rows, cols] = result;
         return rows;
+    }
+
+    async listColumnNamesAsync() {
+        const columns = await this.showColumnsAsync();
+        return columns.map(m => m.Field);
+    }
+
+    async ensureColumnsAsync(...column_names) {
+        const fields = await this.listColumnNamesAsync();
+        const fields_set = new Set(fields);
+        for (let column_name of column_names) {
+            const is_existed = fields_set.has(column_name);
+            if (!is_existed) {
+                throw new Error(`DbTable<${this._cls}> unknown field "${column_name}"`);
+            }
+        }
     }
 
     static toData(row) {
@@ -445,7 +480,7 @@ class DbTable {
             return await this.addAsync(object);
         } else {
             if (item.deleted) {
-                return await this.reviveAsync(item);
+                return await this.enableAsync(item);
             }
         }
     }
@@ -468,13 +503,49 @@ class DbTable {
         return {op, data, state}
     }
 
-    async upsertManyAsync(objects, strict = true) {
-        // @strict: strictForm
-        this.constructor.ensureFieldOfDeleted();
+    async replaceOneAsync(object) {
+        /*
+        * mysql insert replace require privileges of delete and insert .
+        * https://dev.mysql.com/doc/refman/8.0/en/replace.html
+
+        @return : ResultSetHeader {
+            fieldCount: 0,
+            affectedRows: 1,
+            insertId: 38,
+            info: '',
+            serverStatus: 2,
+            warningStatus: 0
+            }
+        */
+
+        const fields = Reflect.ownKeys(object);
+        const values = fields.map(key => object[key]);
+        const {dbc, tablename} = this;
+        const fs = `(${fields.join(', ')})`;
+        const vs = `(${fields.map(m => "?").join(', ')})`;
+        // const lines = new Array(count).fill(vs);
+        const sql = `REPLACE INTO ${tablename} ${fs} VALUES ${vs};`;
+        const [result, field] = await dbSqlAsync(dbc, sql, values);
+        result.op = 'replace_into';
+        return result;
+    }
+
+    async replaceManyAsync(objects, strict = true) {
+        /*
+        @strict: strictForm
+        @return: ResultSetHeader {
+            fieldCount: 0,
+            affectedRows: 2,
+            insertId: 4,
+            info: 'Records: 2  Duplicates: 0  Warnings: 0',
+            serverStatus: 2,
+            warningStatus: 0,
+            }
+        */
         if (objects instanceof Array) {
             const count = objects.length;
             if (count === 0) {
-                throw new Error('no objects to update')
+                throw new Error(`DbTable<${this._cls}>: no objects to update`)
             }
 
             if (strict) {
@@ -488,35 +559,94 @@ class DbTable {
             const fs = `(${fields.join(', ')})`;
             const vs = `(${fields.map(m => "?").join(', ')})`;
             const lines = new Array(count).fill(vs);
-            const sql = `INSERT INTO ${tablename} ${fs} VALUES ${lines.join(',')} ON DUPLICATE KEY UPDATE deleted = false;`;
             const args = [].concat.apply([], values);
-            return await dbSqlAsync(dbc, sql, args);
+            const sql = `REPLACE INTO ${tablename} ${fs} VALUES ${lines.join(',')};`;
+            const result = await dbSqlAsync(dbc, sql, args);
+            result.op = 'replace_into';
+            return result;
         } else {
-            throw new TypeError('objects is not instanceof Array');
+            throw new Error(`DbTable<${this._cls}>: objects is not instanceof Array`);
         }
     }
 
-    async delAsync(filter = {}) {
+    async upsertManyAsync(objects, duplicate_update = {key: "deleted", value: false}, strict = true) {
+        /*
+        @strict: strictForm
+        @return: ResultSetHeader {
+            fieldCount: 0,
+            affectedRows: 2,
+            insertId: 4,
+            info: 'Records: 2  Duplicates: 2  Warnings: 0',
+            serverStatus: 2,
+            warningStatus: 0,
+            },
+         */
+        const dup_form = Object.assign({}, duplicate_update);
+        const key = dup_form.key;
+        if (!key) {
+            throw new Error(`DbTable<${this._cls}>: invalid duplicate_update(${JSON.stringify(duplicate_update)})`)
+        }
+        await this.ensureColumnsAsync(key);
+
+        if (objects instanceof Array) {
+            const count = objects.length;
+            if (count === 0) {
+                throw new Error(`DbTable<${this._cls}>: no objects to upsert`)
+            }
+
+            if (strict) {
+                objects = objects.map(obj => this.constructor.strictForm(obj))
+            }
+
+            const {dbc, tablename} = this;
+            const fields = Reflect.ownKeys(objects[0]);
+            const values = objects.map(obj => fields.map(key => obj[key]));
+
+            const fs = `(${fields.join(', ')})`;
+            const vs = `(${fields.map(m => "?").join(', ')})`;
+            const lines = new Array(count).fill(vs);
+            const args = [].concat.apply([], values);
+
+            let dup_on = `${dup_form.key} = ${dup_form.key}`;
+            if (dup_form.value) {
+                args.push(dup_form.value);
+                dup_on = `${dup_form.key} = ?`;
+            }
+            const sql = `INSERT INTO ${tablename} ${fs} VALUES ${lines.join(',')} ON DUPLICATE KEY UPDATE ${dup_on};`;
+            console.log(sql, args);
+            const [result, cols] = await dbSqlAsync(dbc, sql, args);
+            result.op = 'insert_ondup';
+            return result;
+        } else {
+            throw new Error(`DbTable<${this._cls}>: objects is not instanceof Array`);
+        }
+    }
+
+    async disableAsync(filter = {}) {
         // 软删除：require set field of "deleted"
-        this.constructor.ensureFieldOfDeleted();
+        await this.ensureColumnsAsync("deleted");
         const updated_form = {deleted: true};
-        return await this.updateAsync(filter, updated_form);
+        const affectedRows = await this.updateAsync(filter, updated_form);
+        return {op: "disable", state: affectedRows}
     }
 
-    async reviveAsync(filter = {}) {
+    async enableAsync(filter = {}) {
         // 软恢复：require set field of "deleted"
-        this.constructor.ensureFieldOfDeleted();
+        await this.ensureColumnsAsync("deleted");
         const updated_form = {deleted: false};
-        return await this.updateAsync(filter, updated_form, false);
+        const affectedRows = await this.updateAsync(filter, updated_form, false);
+        return {op: "enable", state: affectedRows}
     }
 
-    async removeAsync(filter = {}) {
+    async deleteAsync(filter = {}) {
         // 硬删除：无法恢复
         const {dbc, tablename} = this;
         const form = this.constructor.queryForm(filter, false);
         const {query, args} = sqlFormat({eq: form});
         const sql = `DELETE FROM ${tablename} ${query};`;
-        return await await dbSqlAsync(dbc, sql, args);
+        const [result, cols] = await await dbSqlAsync(dbc, sql, args);
+        result.op = 'delete';
+        return result
     }
 
 }
