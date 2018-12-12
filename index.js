@@ -4,7 +4,7 @@
 * */
 
 const mysql_dbc = require('mysql-dbc');
-
+const db_util = require('./db_util');
 const DbcName = 'mysql-dbc';
 
 const initDbc = (config = {}) => {
@@ -280,7 +280,11 @@ class DbTable {
             const fmt = fields[key].fmt;
             const value = object[key];
             if (value !== undefined && fmt instanceof Function) {
-                form[key] = fmt(value);
+                let v = fmt(value);
+                // filter: undefined is invalid
+                if (v !== undefined) {
+                    form[key] = v;
+                }
             }
         }
         return form;
@@ -660,4 +664,5 @@ module.exports = {
     sqlFormat: sqlFormat,
     dbSqlAsync: dbSqlAsync,
     DbTable: DbTable,
+    db_util: db_util,
 };
