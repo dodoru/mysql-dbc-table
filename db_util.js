@@ -10,20 +10,51 @@ const fmtJson = (m) => {
     }
 };
 
-const trimString = (m) => {
-    if (m === undefined || m === null) {
+const trimString = (value) => {
+    // :value: undefined, null，string, or number
+    // return: string
+    if (value === undefined || value === null) {
         return ''
     }
-    if (typeof (m) === 'string') {
-        return m.trim()
+    if (typeof (value) === 'string') {
+        return value.trim()
     }
-    if (typeof (m) === 'number') {
-        return String(m)
+    if (typeof (value) === 'number') {
+        return String(value)
     }
-    throw new Error('trimString: value should be undefined, null， string, or number')
+    throw new Error('TypeError: $trimString expect value of undefined, null，string, or number')
 }
 
 const enumFalseSet = new Set(["", "false", "0", "undefined", "null", "none", "[]", "{}"])
+
+const varStringMap = {
+    undefined: undefined,
+    null: null,
+    none: null,
+}
+
+const varStringSet = new Set(Object.keys(varStringMap))
+
+const varStr = (value) => {
+    // :value: undefined, null，string, or number
+    // return: undefined, null，string, or number
+    if (value === undefined || value === null) {
+        return value
+    }
+    if (typeof (value) === "number") {
+        return String(value)
+    }
+    if (typeof (value) === 'string') {
+        let val = value.trim()
+        let key = val.toLowerCase()
+        if (varStringSet.has(key)) {
+            return varStringMap[key]
+        } else {
+            return val;
+        }
+    }
+    throw new Error('TypeError: $varStr expect value of undefined, null，string, or number')
+};
 
 const varBool = (m) => {
     if (typeof (m) === 'string') {
@@ -52,6 +83,9 @@ const varIntU = (m) => {
 module.exports = {
     fmtJson: fmtJson,
     trimString: trimString,
+    varStringMap: varStringMap,
+    varStringSet: varStringSet,
+    varStr: varStr,
     varBool: varBool,
     varIntU: varIntU,
 };
