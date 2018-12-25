@@ -94,8 +94,30 @@ const K_OP = {
     in: 'IN',
     like: 'LIKE',
     not_in: 'NOT IN',
+    is: 'IS',
+    is_not: 'IS NOT',
 };
 
+const optFilter = (form) => {
+    // return: {is, is_not, eq}
+    const opts = {}
+    for (let key in form) {
+        let value = form[key];
+        let item = {[key]: value};
+        if (value === null) {
+            opts.is = Object.assign(item, opts.is)
+        } else {
+            // 注意 undefined 对应的是 not NULL
+            if (value === undefined) {
+                item = {[key]: null};
+                opts.is_not = Object.assign(item, opts.is_not);
+            } else {
+                opts.eq = Object.assign(item, opts.eq)
+            }
+        }
+    }
+    return opts;
+}
 
 // todo : rewrite class<DbQuery>
 const sqlFormat = (opts = {}, order = {}, limit) => {
@@ -371,35 +393,22 @@ class DbTable {
         return await func();
     }
 
-    async countAsync(filter = {}, ensureNotDeleted) {
-        const {dbc, tablename} = this;
-        const form = this.constructor.queryForm(filter, ensureNotDeleted);
-        const {query, args} = sqlFormat({eq: form});
-        const sql = `SELECT count(*) as count FROM ${tablename} ${query};`;
-        const result = await dbSqlAsync(dbc, sql, args);
-        const [rows, columns] = result;
-        return rows[0].count;
-    }
-
-
     async findAsync(filter = {}, ensureNotDeleted, res = '*', order = {}, limit) {
-        const {dbc, tablename} = this;
         const form = this.constructor.queryForm(filter, ensureNotDeleted);
-        const {query, args} = sqlFormat({eq: form}, order, limit);
-        const sql = `SELECT ${res} FROM ${tablename} ${query};`;
-        const result = await dbSqlAsync(dbc, sql, args);
-        const [rows, fields] = result;
-        return rows;
+        const opts = optFilter(form);
+        const qry = {opts, res, order, limit}
+        return await this.queryAsync(qry);
     }
 
     async findOneAsync(filter = {}, ensureNotDeleted, res = '*', order = {}) {
-        const {dbc, tablename} = this;
-        const form = this.constructor.queryForm(filter, ensureNotDeleted);
-        const {query, args} = sqlFormat({eq: form}, order, 1);
-        const sql = `SELECT ${res} FROM ${tablename} ${query};`;
-        const result = await dbSqlAsync(dbc, sql, args);
-        const [rows, fields] = result;
+        const rows = await this.findAsync(filter, ensureNotDeleted, res, order, 1)
         return rows[0] || null;
+    }
+
+    async countAsync(filter = {}, ensureNotDeleted) {
+        const res = 'count(*) as count';
+        const row = await this.findOneAsync(filter, ensureNotDeleted, res);
+        return row.count;
     }
 
     async getOr404Async(filter = {}, ensureNotDeleted, res = '*') {
@@ -414,15 +423,6 @@ class DbTable {
             throw e;
         }
         return obj;
-    }
-
-    async findLimitAsync(limit = 1, filter = {}, order = {}, ensureNotDeleted) {
-        // size: int : 个数
-        const {dbc, tablename} = this;
-        const form = this.constructor.queryForm(filter, ensureNotDeleted);
-        const {query, args} = sqlFormat({eq: form}, order, limit);
-        const sql = `SELECT * from ${tablename} ${query} ;`;
-        return await this.selectAsync(sql, args);
     }
 
     async findOneByFieldsAsync(field_keys, field_values) {
@@ -661,6 +661,7 @@ module.exports = {
     },
     initDbc: initDbc,
     dbcPool: dbcPool,
+    optFilter: optFilter,
     sqlFormat: sqlFormat,
     dbSqlAsync: dbSqlAsync,
     DbTable: DbTable,
