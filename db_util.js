@@ -57,6 +57,9 @@ const varStr = (value) => {
 };
 
 const varBool = (m) => {
+    if (m === undefined || m === null || m === '' || m === 0) {
+        return false
+    }
     if (typeof (m) === 'string') {
         m = m.trim().toLowerCase()
         if (enumFalseSet.has(m)) {
