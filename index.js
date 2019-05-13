@@ -305,7 +305,11 @@ class DbTable {
                 let v = fmt(value);
                 // filter: undefined is invalid
                 if (v !== undefined) {
-                    form[key] = v;
+                    if (typeof (v) === "number" && isNaN(v)) {
+                        console.info(`InvalidColumn<${key}>:int:${value}`)
+                    } else {
+                        form[key] = v;
+                    }
                 }
             }
         }
@@ -617,7 +621,7 @@ class DbTable {
                 dup_on = `${dup_form.key} = ?`;
             }
             const sql = `INSERT INTO ${tablename} ${fs} VALUES ${lines.join(',')} ON DUPLICATE KEY UPDATE ${dup_on};`;
-            console.log(sql, args);
+            // console.log(sql, args);
             const [result, cols] = await dbSqlAsync(dbc, sql, args);
             result.op = 'insert_ondup';
             return result;
