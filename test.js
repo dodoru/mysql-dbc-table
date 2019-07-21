@@ -1,6 +1,6 @@
 const assert = require('assert');
 const mysql_dbc_table = require('./index');
-const db_util = require('./db_util');
+const db_util = require('./lib/db_util');
 
 const DbTable = mysql_dbc_table.DbTable;
 const log = console.log.bind(console);
