@@ -73,4 +73,16 @@ const users = await db_user.findAsync();
 const user = await db_user.findOneAsync();
 ```
 
-##### 更多请参阅 test.js
+#### Change Logs
+
+##### v1.0.2
+
+- fix $findOneAsync, throw error if rows.length >= 2
+
+##### v1.0.3
+
+- deprecated $findOneAsync, suggest to $getOrNoneAsync
+- add global singleton default config to SQL : db_table.SqlConfig
+- reformat res(*) to fields keys join by comma(",").
+
+
