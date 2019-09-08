@@ -79,7 +79,7 @@ const user = await db_user.findOneAsync();
 
 - fix $findOneAsync, throw error if rows.length >= 2
 
-##### v1.0.3
+##### v1.0.4
 
 - deprecated $findOneAsync, suggest to $getOrNoneAsync
 - add global singleton default config to SQL : db_table.SqlConfig
