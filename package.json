@@ -1,6 +1,6 @@
 {
   "name": "mysql-dbc-table",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "creating and manipulating MySQL table by inheriting parent class<DbTable> with mysl-dbc",
   "main": "index.js",
   "scripts": {

@@ -352,10 +352,14 @@ class DbTable {
     }
 
     async queryAsync(qry = {}) {
-        const res = qry.res || '*';
         const opts = qry.opts || {};
         const order = qry.order || {};
         const limit = qry.limit;
+        let res = qry.res || '*';
+        if (res === "*") {
+            let fds = this.constructor.fields();
+            res = Object.keys(fds).join(",");
+        }
         const {dbc, tablename} = this;
         const {query, args} = sqlFormat(opts, order, limit);
         const sql = `SELECT ${res} FROM ${tablename} ${query}; `;
