@@ -94,6 +94,7 @@ const testMain = async () => {
     assert.equal(s10.deleted, true);
 
     // test update
+    mysql_dbc_table.db_table.SqlConfig.allow_multiple_on_find_one = true
     const ur = await db_user.findOneAsync({deleted: true}, false);
     console.log('findOne', ur);
     const ur1 = await db_user.updateAsync({id: ur.id}, {name: ur.name.replace('tester_', 'dev_')});
@@ -162,10 +163,12 @@ const testMain = async () => {
     console.log(1005, d12.length)
     assert.equal(d12.length, d11.length)
 
+    // update config
+    mysql_dbc_table.db_table.SqlConfig.enable_undefined = true;
     const d13 = await db_user.findOneAsync({note: null}, false)
     console.log(1006, d13)
 
-    const d14 = await db_user.findOneAsync({note: undefined}, false)
+    const d14 = await db_user.findOneAsync({note: undefined}, false, res = "id")
     console.log(1007, d14)
 
     const d15 = await db_user.findAsync();
@@ -176,8 +179,12 @@ const testMain = async () => {
         console.log(1010, d16)
     }
 
-    const d17 = await db_user.findOneAsync({note: undefined}, false)
-    console.log(1011, d17)
+    try {
+        const d17 = await db_user.findOneAsync({note: undefined}, false)
+        console.log(1011, d17)
+    } catch (e) {
+        assert(e.errno === errno)
+    }
 };
 
 const testUtil = () => {
