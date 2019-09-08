@@ -102,6 +102,8 @@ const testMain = async () => {
     const ur2 = await db_user.findOneAsync({id: ur.id});
     console.log('result :', ur2);
 
+    mysql_dbc_table.db_table.SqlConfig.allow_multiple_on_find_one = false
+
     // test upsert
     const ur3 = await db_user.findOneAsync({id: 1}, false);
     console.log('user<id:1>', ur3);
@@ -165,7 +167,7 @@ const testMain = async () => {
 
     // update config
     mysql_dbc_table.db_table.SqlConfig.enable_undefined = true;
-    const d13 = await db_user.findOneAsync({note: null}, false)
+    const d13 = await db_user.findOneAsync({note: null}, false, "*", null, true)
     console.log(1006, d13)
 
     const d14 = await db_user.findOneAsync({note: undefined}, false, res = "id")
