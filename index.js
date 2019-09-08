@@ -10,6 +10,7 @@ module.exports = {
     optFilter: optFilter,
     sqlFormat: sqlFormat,
 
+    db_table: db_table,
     DbTable: db_table.DbTable,
     dbcPool: db_table.dbcPool,
     initDbc: db_table.initDbc,
