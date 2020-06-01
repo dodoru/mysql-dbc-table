@@ -6,8 +6,6 @@
 
 const mysql_dbc = require('mysql-dbc');
 
-const DbcName = 'mysql-dbc';
-
 const initDbc = (config = {}) => {
     const cfg = {
         // required
@@ -22,7 +20,7 @@ const initDbc = (config = {}) => {
     };
 
     const dbc = mysql_dbc.createDbc();
-    dbc._cls = DbcName;
+    dbc._cls = `<MysqlDbc:${cfg.database}>`;
     dbc.init(cfg);
     dbc.config = cfg;
     dbc.uri = `mysql://${cfg.user}:${cfg.password}@${cfg.host}:${cfg.port}/${cfg.database}`;
@@ -160,14 +158,19 @@ const dbSqlAsync = async (dbc, sql, args) => {
 
 
 class DbTable {
-    constructor(tablename, dbc) {
-        this._cls = this.constructor.name;
-        this.tablename = tablename;
-        if (dbc && dbc instanceof Object && dbc._cls === DbcName) {
-            // todo: 更严谨的判定
+    constructor(tablename_or_dbc, dbc) {
+        // $dbc is required, if undefined try to init from $1:tablename_or_dbc
+        dbc = dbc || tablename_or_dbc;
+        this._cls = `<DbTable:${this.constructor.name}>`;
+        if (typeof (tablename_or_dbc) === "string") {
+            this.tablename = tablename_or_dbc;
+        } else {
+            this.tablename = this.constructor.name;
+        }
+        if (dbc instanceof Object && String(dbc.uri).startsWith("mysql://")) {
             this.dbc = dbc;
         } else {
-            throw new Error(`[DbTable:${this._cls}:${tablename}], init DbTable with invalid dbc ...`)
+            throw new Error(`${this._cls}: init [${this.tablename}] with invalid dbc ...`)
         }
     }
 
