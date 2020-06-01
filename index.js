@@ -170,7 +170,7 @@ class DbTable {
         if (dbc instanceof Object && String(dbc.uri).startsWith("mysql://")) {
             this.dbc = dbc;
         } else {
-            throw new Error(`${this._cls}: init [${this.tablename}] with invalid dbc ...`)
+            throw new Error(`${this._cls}[${this.tablename}]: init with invalid dbc ...`)
         }
     }
 
@@ -261,7 +261,7 @@ class DbTable {
         for (let column_name of column_names) {
             const is_existed = fields_set.has(column_name);
             if (!is_existed) {
-                throw new Error(`DbTable<${this._cls}> unknown field "${column_name}"`);
+                throw new Error(`${this._cls}[${this.tablename}] unknown field "${column_name}"`);
             }
         }
     }
@@ -562,7 +562,7 @@ class DbTable {
         if (objects instanceof Array) {
             const count = objects.length;
             if (count === 0) {
-                throw new Error(`DbTable<${this._cls}>: no objects to update`)
+                throw new Error(`${this._cls}[${this.tablename}]: no objects to update`)
             }
 
             if (strict) {
@@ -582,7 +582,7 @@ class DbTable {
             result.op = 'replace_into';
             return result;
         } else {
-            throw new Error(`DbTable<${this._cls}>: objects is not instanceof Array`);
+            throw new Error(`${this._cls}[${this.tablename}]: objects is not instanceof Array`);
         }
     }
 
@@ -601,14 +601,14 @@ class DbTable {
         const dup_form = Object.assign({}, duplicate_update);
         const key = dup_form.key;
         if (!key) {
-            throw new Error(`DbTable<${this._cls}>: invalid duplicate_update(${JSON.stringify(duplicate_update)})`)
+            throw new Error(`${this._cls}[${this.tablename}]: invalid duplicate_update(${JSON.stringify(duplicate_update)})`)
         }
         await this.ensureColumnsAsync(key);
 
         if (objects instanceof Array) {
             const count = objects.length;
             if (count === 0) {
-                throw new Error(`DbTable<${this._cls}>: no objects to upsert`)
+                throw new Error(`${this._cls}[${this.tablename}]: no objects to upsert`)
             }
 
             if (strict) {
@@ -635,7 +635,7 @@ class DbTable {
             result.op = 'insert_ondup';
             return result;
         } else {
-            throw new Error(`DbTable<${this._cls}>: objects is not instanceof Array`);
+            throw new Error(`${this._cls}[${this.tablename}]: objects is not instanceof Array`);
         }
     }
 
