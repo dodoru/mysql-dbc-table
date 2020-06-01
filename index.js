@@ -1,6 +1,7 @@
 /*
-*  Mysql Db Table
-*  统一数据库的接口，尽量不要裸写 mysql 语句
+*  Mysql Dbc Table:
+*    A Simple Toolkit for Human to CRUD Table of Mysql.
+*  copyright@https://github.com/dodoru/mysql-dbc-table
 * */
 
 const mysql_dbc = require('mysql-dbc');
@@ -187,8 +188,14 @@ class DbTable {
         return this.toString();
     }
 
+    /*
+    * <fields>: define columns of Mysql Table, require override in SubClass of DbTable
+    * options:
+          `fmt` : <Function> : convert raw data from `node-mysql2` to javascript object.
+          `default` : <value>: optional to init a row object to insert into mysql table.
+    * return: {<$column>: {fmt: <$function>}}
+    * */
     static fields() {
-        // require super in subclass
         return {
             id: {
                 fmt: parseInt,
