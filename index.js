@@ -80,8 +80,7 @@ const dbcPool = {
     },
     getPool: () => {
         return dbcPool._pools;
-    }
-
+    },
 };
 
 
@@ -179,17 +178,19 @@ class DbTable {
         return {model, tablename, database, host, port, user}
     }
 
+    /* support String() */
     toString() {
         const {model, tablename, database, host, port, user} = this.info();
         return `[DbTable:${model}:${tablename}] dbc=${user}@${host}:${port}/${database}`;
     }
 
+    /* support JSON.stringify() */
     toJSON() {
         return this.toString();
     }
 
     /*
-    * <fields>: define columns of Mysql Table, require override in SubClass of DbTable
+    * <usage>: define column fields of DbTable, require override in SubClass of DbTable
     * options:
           `fmt` : <Function> : convert raw data from `node-mysql2` to javascript object.
           `default` : <value>: optional to init a row object to insert into mysql table.
@@ -208,10 +209,10 @@ class DbTable {
         }
     }
 
-    async showColumnsAsync() {
-        /*
-         samples of rows and cols
-         col = {
+    /*
+    * <usage>: show column fields of Mysql Table
+    * sample item of <List:$cols> and <List:$rows> from results of sql query.
+     col = {
             catalog: 'def',
             schema: 'information_schema',
             name: 'Field',
@@ -223,16 +224,18 @@ class DbTable {
             columnType: 253,
             flags: 1,
             decimals: 0
-         },
-         row = TextRow {
+     }
+     row = TextRow {
             Field: 'id',
             Type: 'int(11)',
             Null: 'NO',
             Key: 'PRI',
             Default: null,
             Extra: 'auto_increment'
-         },
-        * */
+     }
+    * return: <List: [ <Object:{Field, Type, Key, Default, Extra}> ] >
+    * */
+    async showColumnsAsync() {
         const dbc = this.dbc;
         const tablename = this.tablename;
         const sql = `show columns from ${tablename}`;
@@ -241,6 +244,9 @@ class DbTable {
         return rows;
     }
 
+    /*
+    * return: <List: [ <String:$ColumnName> ]>
+    * */
     async listColumnNamesAsync() {
         const columns = await this.showColumnsAsync();
         return columns.map(m => m.Field);
