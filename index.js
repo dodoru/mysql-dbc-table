@@ -397,24 +397,17 @@ class DbTable {
         return rows[0].count;
     }
 
-
-    async findAsync(filter = {}, ensureNotDeleted, res = '*', order = {}, limit) {
-        const {dbc, tablename} = this;
-        const form = this.constructor.queryForm(filter, ensureNotDeleted);
-        const {query, args} = sqlFormat({eq: form}, order, limit);
-        const sql = `SELECT ${res} FROM ${tablename} ${query};`;
-        const result = await dbSqlAsync(dbc, sql, args);
-        const [rows, fields] = result;
-        return rows;
+    // Return <List: rows>:
+    async findAsync(opts_eq = {}, ensureNotDeleted, res = '*', order = {}, limit) {
+        const form = this.constructor.queryForm(opts_eq, ensureNotDeleted);
+        const cond = {limit, order, res, opts: {eq: form}};
+        return await this.queryAsync(cond);
     }
 
+    // Return <Object: row>: random one with $filter, first one if $order.
     async findOneAsync(filter = {}, ensureNotDeleted, res = '*', order = {}) {
-        const {dbc, tablename} = this;
-        const form = this.constructor.queryForm(filter, ensureNotDeleted);
-        const {query, args} = sqlFormat({eq: form}, order, 1);
-        const sql = `SELECT ${res} FROM ${tablename} ${query};`;
-        const result = await dbSqlAsync(dbc, sql, args);
-        const [rows, fields] = result;
+        const limit = 1;
+        const rows = this.findAsync(filter, ensureNotDeleted, res, order, limit);
         return rows[0] || null;
     }
 
@@ -430,12 +423,6 @@ class DbTable {
             throw e;
         }
         return obj;
-    }
-
-    async findLimitAsync(limit = 1, filter = {}, order = {}, ensureNotDeleted, res = "*") {
-        const form = this.constructor.queryForm(filter, ensureNotDeleted);
-        const cond = {limit, order, res, opts: {eq: form}};
-        return await this.queryAsync(cond);
     }
 
     async findOneByFieldsAsync(field_keys, field_values) {
