@@ -432,13 +432,10 @@ class DbTable {
         return obj;
     }
 
-    async findLimitAsync(limit = 1, filter = {}, order = {}, ensureNotDeleted) {
-        // size: int : 个数
-        const {dbc, tablename} = this;
+    async findLimitAsync(limit = 1, filter = {}, order = {}, ensureNotDeleted, res = "*") {
         const form = this.constructor.queryForm(filter, ensureNotDeleted);
-        const {query, args} = sqlFormat({eq: form}, order, limit);
-        const sql = `SELECT * from ${tablename} ${query} ;`;
-        return await this.selectAsync(sql, args);
+        const cond = {limit, order, res, opts: {eq: form}};
+        return await this.queryAsync(cond);
     }
 
     async findOneByFieldsAsync(field_keys, field_values) {
