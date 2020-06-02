@@ -48,6 +48,8 @@ const initDbc = (config = {}) => {
     return dbc;
 };
 
+const isDbc = (dbc) => dbc instanceof Object && String(dbc._cls).startsWith("<MysqlDbc:") && String(dbc.uri).startsWith("mysql://");
+
 // singleton dbc pool
 const dbcPool = {
     dbcfgs: {},
@@ -199,6 +201,10 @@ class DbTable {
         }
     }
 
+    /*
+    * usage: new DbTable(<String:tablename>, <Dbc:db_connection>)
+    *        new DbTable(<Dbc:db_connection>)
+    * */
     constructor(tablename_or_dbc, dbc) {
         // $dbc is required, if undefined try to init from $1:tablename_or_dbc
         dbc = dbc || tablename_or_dbc;
@@ -208,10 +214,25 @@ class DbTable {
         } else {
             this.tablename = this.constructor.name;
         }
-        if (dbc instanceof Object && String(dbc.uri).startsWith("mysql://")) {
+        if (isDbc(dbc)) {
             this.dbc = dbc;
         } else {
             throw new Error(`${this._cls}[${this.tablename}]: init with invalid dbc ...`)
+        }
+
+        // checkout predefined fields
+        this._field_primary_key = this.constructor._field_primary_key || "";
+        this._field_flag_hidden = this.constructor._field_flag_hidden || "";
+        this.fields = this.constructor.fields();
+        if (this._field_flag_hidden) {
+            let fg = this.fields[this._field_flag_hidden];
+            if (!fg) {
+                throw new Error(`${this._cls}[${this.tablename}]: invalid $_field_flag_hidden=${this._field_flag_hidden}`);
+            }
+            let tp = typeof (fg.fmt(false));
+            if (tp !== "boolean") {
+                throw new Error(`${this._cls}[${this.tablename}]: invalid $_field_flag_hidden=${this._field_flag_hidden}, required $fmt=>Boolean, not ${tp}`);
+            }
         }
     }
 
