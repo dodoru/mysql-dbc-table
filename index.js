@@ -344,15 +344,21 @@ class DbTable {
         return form;
     }
 
-    static queryForm(filter, ensureNotDeleted) {
-        const form = Object.assign({}, filter);
-        const fields = this.fields();
-        if ('deleted' in fields) {
-            if (ensureNotDeleted === undefined || ensureNotDeleted) {
-                form.deleted = false;
-            }
+    /*
+    * @opts_eq          : <Object : {$Column_field: $formatted_value}>
+    *                   ; condition to filter with equal fields value
+    *                   ; suggest to use result of $strictForm
+    * @ensureNotDeleted : <Boolean: default(true)>
+    *                   ; hide deprecated items which were soft deleted by `disableAsync()`
+    * */
+    static queryForm(opts_eq = {}, ensureNotDeleted = true) {
+        if (typeof (opts_eq) !== "object") {
+            throw Error(`<DbTable:${this.name}>: invalid $query=${opts_eq}, require <Object>`);
         }
-        return form;
+        if (this._field_flag_hidden && ensureNotDeleted) {
+            opts_eq[this._field_flag_hidden] = false;
+        }
+        return opts_eq;
     }
 
     static equal(a, b) {
