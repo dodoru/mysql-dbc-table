@@ -1,6 +1,11 @@
 /*
 *  Mysql Dbc Table:
 *    A Simple Toolkit for Human to CRUD Table of Mysql.
+*       - Simple Code but Flexible Usage.
+*       - Fast predefine Column fields of table.
+*       - Auto formatted($fmt) sql data to js object.(`$DbTable.fields()`)
+*       - Restful CRUD Api to query Mysql table. (`$_field_flag_hidden`)
+*       - Support Soft Deletion and Soft Recovery. (`$_field_flag_hidden`)
 *  copyright@https://github.com/dodoru/mysql-dbc-table
 * */
 
@@ -179,14 +184,16 @@ class DbTable {
             }
         }
 
-    * @_field_flag_hidden: <String: name of Primary-Column>
-    * @_field_flag_hidden: <String: name of Boolean-Column>
+    * @_enable_delete_all: <Boolean: false> , avoid to delete all rows by `.deleteAsync()`
+    * @_field_flag_hidden: <String: ""> , name of Primary-Column
+    * @_field_flag_hidden: <String: ""> , name of Boolean-Column
     *   Table columns should be predefined by $DbTable.fields(), and Note that only One Or Zero field has this flag.
     *   This flag is designed for #SoftDeletion and #DisplayAfterReview,
     *   it would be automatically set in conditions while query table and hide deprecated rows.
     *   default: set column `deleted` to mark data to be hidden in common queries with default arguments.
     * */
     static fields() {
+        this._enable_delete_all = false;
         this._field_primary_key = "id";
         this._field_flag_hidden = "deleted";
         return {
@@ -217,6 +224,7 @@ class DbTable {
 
         // checkout predefined fields
         this.fields = this.constructor.fields();
+        this._enable_delete_all = this.constructor._enable_delete_all || false;
         this._field_primary_key = this.constructor._field_primary_key || "";
         this._field_flag_hidden = this.constructor._field_flag_hidden || "";
         if (this._field_flag_hidden) {
@@ -251,7 +259,7 @@ class DbTable {
 
     /*
     * <usage>: show column fields of Mysql Table
-    * sample item of <List:$cols> and <List:$rows> from results of sql query.
+    * sample item of <Array:$cols> and <Array:$rows> from results of sql query.
      col = {
             catalog: 'def',
             schema: 'information_schema',
@@ -273,7 +281,7 @@ class DbTable {
             Default: null,
             Extra: 'auto_increment'
      }
-    * return: <List: [ <Object:{Field, Type, Key, Default, Extra}> ]>
+    * return: <Array: [ <Object:{Field, Type, Key, Default, Extra}> ]>
     * */
     async showColumnsAsync() {
         const dbc = this.dbc;
@@ -285,7 +293,7 @@ class DbTable {
     }
 
     /*
-    * return: <List: [ <String:$ColumnName> ]>
+    * return: <Array: [ <String:$ColumnName> ]>
     * */
     async listColumnNamesAsync() {
         const columns = await this.showColumnsAsync();
@@ -293,7 +301,7 @@ class DbTable {
     }
 
     /*
-    * check <List: $column_names>, raise Error if any column is not existed
+    * check <Array: $column_names>, raise Error if any column is not existed
     * return: Null
     * */
     async ensureColumnsAsync(...column_names) {
@@ -329,7 +337,7 @@ class DbTable {
     }
 
     /*
-    * return: <List: [ <Object: {$column_field: $formatted_value}> ]>
+    * return: <Array: [ <Object: {$column_field: $formatted_value}> ]>
     * */
     static format(rows) {
         const self = this;
@@ -461,7 +469,7 @@ class DbTable {
         return rows[0].count;
     }
 
-    // Return <List: rows>:
+    // Return <Array: rows>:
     async findAsync(conditions = {}, ensureNotDeleted = true, res = '*', order = {}, limit) {
         const form = this.constructor.queryForm(conditions, ensureNotDeleted);
         const cond = {limit, order, res, opts: {eq: form}};
@@ -566,6 +574,8 @@ class DbTable {
         }
     }
 
+    // update if existed else insert one
+    // suggest to set conditions with primary key-value to UPSERT ONE
     async upsertAsync(conditions = {}, updated_form = {}) {
         const item = await this.findOneAsync(conditions, false);
         let op, state, data;
@@ -626,7 +636,7 @@ class DbTable {
         if (objects instanceof Array) {
             const count = objects.length;
             if (count === 0) {
-                throw new Error(`${this._cls}[${this.tablename}]: no objects to update`)
+                throw new Error(`${this._cls}[${this.tablename}]: no objects to replace`)
             }
 
             if (strict) {
@@ -646,7 +656,7 @@ class DbTable {
             result.op = 'replace_into';
             return result;
         } else {
-            throw new Error(`${this._cls}[${this.tablename}]: objects is not instanceof Array`);
+            throw new Error(`${this._cls}[${this.tablename}]: require replaceManyAsync(<Array:[<objects>]>)`);
         }
     }
 
@@ -699,7 +709,7 @@ class DbTable {
             result.op = 'insert_ondup';
             return result;
         } else {
-            throw new Error(`${this._cls}[${this.tablename}]: objects is not instanceof Array`);
+            throw new Error(`${this._cls}[${this.tablename}]: require upsertManyAsync(<Array:[<objects>]>)`);
         }
     }
 
@@ -726,6 +736,13 @@ class DbTable {
 
     async deleteAsync(conditions = {}) {
         // #HardDeletion: #硬删除：never recovery (无法恢复)
+        if (!this._enable_delete_all && Object.keys(conditions).length === 0) {
+            let msgs = [
+                "you are trying to delete all the rows , it\'s too dangerous !!!",
+                "If you are determined to delete all, you should manually set `this._enable_delete_all = true`.",
+            ]
+            throw Error(`${this._cls}[${this.tablename}]: ${msgs.join('\n')} `)
+        }
         const {dbc, tablename} = this;
         const form = this.constructor.queryForm(conditions, false);
         const {query, args} = sqlFormat({eq: form});
