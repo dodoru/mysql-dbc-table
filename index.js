@@ -216,9 +216,9 @@ class DbTable {
         }
 
         // checkout predefined fields
+        this.fields = this.constructor.fields();
         this._field_primary_key = this.constructor._field_primary_key || "";
         this._field_flag_hidden = this.constructor._field_flag_hidden || "";
-        this.fields = this.constructor.fields();
         if (this._field_flag_hidden) {
             let fg = this.fields[this._field_flag_hidden];
             if (!fg) {
