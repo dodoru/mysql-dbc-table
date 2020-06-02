@@ -682,26 +682,31 @@ class DbTable {
         }
     }
 
-    async disableAsync(filter = {}) {
-        // 软删除：require set field of "deleted"
-        await this.ensureColumnsAsync("deleted");
-        const updated_form = {deleted: true};
-        const affectedRows = await this.updateAsync(filter, updated_form);
+
+    async disableAsync(conditions = {}) {
+        // #SoftDeletion: #软删除：require set $_field_flag_hidden
+        if (!this._field_flag_hidden) {
+            throw Error(`${this._cls}[${this.tablename}]: unset $_field_flag_hidden`)
+        }
+        const updated_form = {[this._field_flag_hidden]: true};
+        const affectedRows = await this.updateAsync(conditions, updated_form);
         return {op: "disable", state: affectedRows}
     }
 
-    async enableAsync(filter = {}) {
-        // 软恢复：require set field of "deleted"
-        await this.ensureColumnsAsync("deleted");
-        const updated_form = {deleted: false};
-        const affectedRows = await this.updateAsync(filter, updated_form, false);
+    async enableAsync(conditions = {}) {
+        // #SoftRecovery: #软恢复：require set $_field_flag_hidden
+        if (!this._field_flag_hidden) {
+            throw Error(`${this._cls}[${this.tablename}]: unset $_field_flag_hidden`)
+        }
+        const updated_form = {[this._field_flag_hidden]: false};
+        const affectedRows = await this.updateAsync(conditions, updated_form, false);
         return {op: "enable", state: affectedRows}
     }
 
-    async deleteAsync(filter = {}) {
-        // 硬删除：无法恢复
+    async deleteAsync(conditions = {}) {
+        // #HardDeletion: #硬删除：never recovery (无法恢复)
         const {dbc, tablename} = this;
-        const form = this.constructor.queryForm(filter, false);
+        const form = this.constructor.queryForm(conditions, false);
         const {query, args} = sqlFormat({eq: form});
         const sql = `DELETE FROM ${tablename} ${query};`;
         const [result, cols] = await await dbSqlAsync(dbc, sql, args);
