@@ -204,19 +204,14 @@ class DbTable {
     /*
     * usage: new DbTable(<String:tablename>, <Dbc:db_connection>)
     *        new DbTable(<Dbc:db_connection>)
+    * @tablename : <String>    ; optional, default is $classname
+    * @dbc       : <DbcObject> ; required! if undefined try to init from $1:tablename_or_dbc
     * */
     constructor(tablename_or_dbc, dbc) {
-        // $dbc is required, if undefined try to init from $1:tablename_or_dbc
-        dbc = dbc || tablename_or_dbc;
         this._cls = `<DbTable:${this.constructor.name}>`;
-        if (typeof (tablename_or_dbc) === "string") {
-            this.tablename = tablename_or_dbc;
-        } else {
-            this.tablename = this.constructor.name;
-        }
-        if (isDbc(dbc)) {
-            this.dbc = dbc;
-        } else {
+        this.dbc = dbc || tablename_or_dbc;
+        this.tablename = typeof (tablename_or_dbc) === "string" ? tablename_or_dbc : this.constructor.name;
+        if (!isDbc(dbc)) {
             throw new Error(`${this._cls}[${this.tablename}]: init with invalid dbc ...`)
         }
 
