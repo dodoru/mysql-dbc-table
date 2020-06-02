@@ -158,6 +158,47 @@ const dbSqlAsync = async (dbc, sql, args) => {
 
 
 class DbTable {
+    /*
+    * <usage>: define column fields of DbTable, require override in SubClass of DbTable
+    * options:
+      `fmt` : <Function> : convert raw data from `node-mysql2` to javascript object.
+      `default` : <value>: optional to init a row object to insert into mysql table.
+    * return: {<$column>: {fmt: <$function>}}
+    * sample:
+
+        class User extends DbTable {
+            static fields() {
+                return {
+                    id: {fmt: parseInt},
+                    name: {fmt: String, default: ''},
+                    created_time: {fmt: (...args) => new Date(...args)},
+                    deleted: {fmt: Boolean, default: false},
+                }
+            }
+        }
+
+    * @_field_flag_hidden: <String: name of Primary-Column>
+    * @_field_flag_hidden: <String: name of Boolean-Column>
+    *   Table columns should be predefined by $DbTable.fields(), and Note that only One Or Zero field has this flag.
+    *   This flag is designed for #SoftDeletion and #DisplayAfterReview,
+    *   it would be automatically set in conditions while query table and hide deprecated rows.
+    *   default: set column `deleted` to mark data to be hidden in common queries with default arguments.
+    * */
+    static fields() {
+        this._field_primary_key = "id";
+        this._field_flag_hidden = "deleted";
+        return {
+            id: {
+                fmt: parseInt,
+                default: 0,
+            },
+            deleted: {
+                fmt: Boolean,
+                default: false,
+            },
+        }
+    }
+
     constructor(tablename_or_dbc, dbc) {
         // $dbc is required, if undefined try to init from $1:tablename_or_dbc
         dbc = dbc || tablename_or_dbc;
@@ -190,26 +231,6 @@ class DbTable {
     /* support JSON.stringify() */
     toJSON() {
         return this.toString();
-    }
-
-    /*
-    * <usage>: define column fields of DbTable, require override in SubClass of DbTable
-    * options:
-          `fmt` : <Function> : convert raw data from `node-mysql2` to javascript object.
-          `default` : <value>: optional to init a row object to insert into mysql table.
-    * return: {<$column>: {fmt: <$function>}}
-    * */
-    static fields() {
-        return {
-            id: {
-                fmt: parseInt,
-                default: 0,
-            },
-            deleted: {
-                fmt: Boolean,
-                default: false,
-            },
-        }
     }
 
     /*
