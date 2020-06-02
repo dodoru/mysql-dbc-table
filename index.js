@@ -453,14 +453,27 @@ class DbTable {
     }
 
     // Return <Object: row>: random one with $filter, first one if $order.
-    async findOneAsync(filter = {}, ensureNotDeleted, res = '*', order = {}) {
+    async findOneAsync(opts_eq = {}, ensureNotDeleted, res = '*', order = {}) {
         const limit = 1;
-        const rows = this.findAsync(filter, ensureNotDeleted, res, order, limit);
+        const rows = this.findAsync(opts_eq, ensureNotDeleted, res, order, limit);
         return rows[0] || null;
     }
 
-    async getOr404Async(filter = {}, ensureNotDeleted, res = '*') {
-        const obj = await this.findOneAsync(filter, ensureNotDeleted, res);
+    // Return exactly one result or Null,  raise an exception if find multiple rows.
+    async getOrNullAsync(opts_eq = {}, ensureNotDeleted) {
+        const rows = await this.findAsync(opts_eq, ensureNotDeleted, "*", {}, 2)
+        if (rows.length === 0) {
+            return null
+        } else if (rows.length === 1) {
+            return rows[0]
+        } else {
+            throw new Error(`${this._cls}[${this.tablename}]: conflict multiple rows on ${JSON.stringify(opts_eq)}`)
+        }
+    }
+
+    // Return exactly one result, or raise an exception for zero or multiple rows.
+    async getOr404Async(filter = {}, ensureNotDeleted) {
+        const obj = await this.getOrNullAsync(filter, ensureNotDeleted);
         if (obj === null) {
             const e = new Error();
             e.message = `Not Found <${this.tablename}:${JSON.stringify(filter)}>`;
