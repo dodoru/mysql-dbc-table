@@ -273,7 +273,7 @@ class DbTable {
             Default: null,
             Extra: 'auto_increment'
      }
-    * return: <List: [ <Object:{Field, Type, Key, Default, Extra}> ] >
+    * return: <List: [ <Object:{Field, Type, Key, Default, Extra}> ]>
     * */
     async showColumnsAsync() {
         const dbc = this.dbc;
@@ -292,6 +292,10 @@ class DbTable {
         return columns.map(m => m.Field);
     }
 
+    /*
+    * check <List: $column_names>, raise Error if any column is not existed
+    * return: Null
+    * */
     async ensureColumnsAsync(...column_names) {
         const fields = await this.listColumnNamesAsync();
         const fields_set = new Set(fields);
@@ -303,6 +307,9 @@ class DbTable {
         }
     }
 
+    /*
+    * return: <Object: {$column_field: $formatted_value} >
+    * */
     static toData(row) {
         const fields = this.fields();
         const data = {};
@@ -321,6 +328,9 @@ class DbTable {
         return data;
     }
 
+    /*
+    * return: <List: [ <Object: {$column_field: $formatted_value}> ]>
+    * */
     static format(rows) {
         const self = this;
         return rows.map(m => self.toData(m));
@@ -340,20 +350,21 @@ class DbTable {
     }
 
     /*
-    * @opts_eq          : <Object : {$Column_field: $formatted_value}>
-    *                   ; condition to filter with equal fields value
-    *                   ; suggest to use result of $strictForm
+    * @conditions       : <Object : {$Column_field: $formatted_value}>
+    *                   ; conditions to filter with equal fields value during `.queryAsync(<$qry.opts.eq>)`
+    *                   ; suggest to set by result of `.strictForm()`
     * @ensureNotDeleted : <Boolean: default(true)>
-    *                   ; hide deprecated items which were soft deleted by `disableAsync()`
+    *                   ; hide deprecated items which were soft deleted by `.disableAsync()`
     * */
-    static queryForm(opts_eq = {}, ensureNotDeleted = true) {
-        if (typeof (opts_eq) !== "object") {
-            throw Error(`<DbTable:${this.name}>: invalid $query=${opts_eq}, require <Object>`);
+    static queryForm(conditions = {}, ensureNotDeleted = true) {
+        const conds = Object.assign({}, conditions);
+        if (typeof (conditions) !== "object") {
+            throw Error(`<DbTable:${this.name}>: invalid $query=${conditions}, require <Object>`);
         }
         if (this._field_flag_hidden && ensureNotDeleted) {
-            opts_eq[this._field_flag_hidden] = false;
+            conds[this._field_flag_hidden] = false;
         }
-        return opts_eq;
+        return conds;
     }
 
     static equal(a, b) {
@@ -430,44 +441,54 @@ class DbTable {
         return await func();
     }
 
-    async countAsync(filter = {}, ensureNotDeleted) {
+    /*
+    * @conditions       : <Object : {$Column_field: $formatted_value}>
+    *                   ; conditions to filter with equal fields value during `.queryAsync(<$qry.opts.eq>)`
+    *                   ; suggest to set by result of `.strictForm()`
+    * @ensureNotDeleted : <Boolean: default(true)>
+    *                   ; hide deprecated items which were soft deleted by `.disableAsync()`
+    * */
+
+    // return: <int: count>
+    async countAsync(conditions = {}, ensureNotDeleted = true) {
         const {dbc, tablename} = this;
-        const form = this.constructor.queryForm(filter, ensureNotDeleted);
+        const form = this.constructor.queryForm(conditions, ensureNotDeleted);
         const {query, args} = sqlFormat({eq: form});
-        const sql = `SELECT count(*) as count FROM ${tablename} ${query};`;
+        const res = this._field_primary_key || "*";
+        const sql = `SELECT count(${res}) as count FROM ${tablename} ${query};`;
         const result = await dbSqlAsync(dbc, sql, args);
         const [rows, columns] = result;
         return rows[0].count;
     }
 
     // Return <List: rows>:
-    async findAsync(opts_eq = {}, ensureNotDeleted, res = '*', order = {}, limit) {
-        const form = this.constructor.queryForm(opts_eq, ensureNotDeleted);
+    async findAsync(conditions = {}, ensureNotDeleted = true, res = '*', order = {}, limit) {
+        const form = this.constructor.queryForm(conditions, ensureNotDeleted);
         const cond = {limit, order, res, opts: {eq: form}};
         return await this.queryAsync(cond);
     }
 
     // Return <Object: row>: random one with $filter, first one if $order.
-    async findOneAsync(opts_eq = {}, ensureNotDeleted, res = '*', order = {}) {
+    async findOneAsync(conditions = {}, ensureNotDeleted = true, res = '*', order = {}) {
         const limit = 1;
-        const rows = this.findAsync(opts_eq, ensureNotDeleted, res, order, limit);
+        const rows = await this.findAsync(conditions, ensureNotDeleted, res, order, limit);
         return rows[0] || null;
     }
 
     // Return exactly one result or Null,  raise an exception if find multiple rows.
-    async getOrNullAsync(opts_eq = {}, ensureNotDeleted) {
-        const rows = await this.findAsync(opts_eq, ensureNotDeleted, "*", {}, 2)
+    async getOrNullAsync(conditions = {}, ensureNotDeleted = true) {
+        const rows = await this.findAsync(conditions, ensureNotDeleted, "*", {}, 2)
         if (rows.length === 0) {
             return null
         } else if (rows.length === 1) {
             return rows[0]
         } else {
-            throw new Error(`${this._cls}[${this.tablename}]: conflict multiple rows on ${JSON.stringify(opts_eq)}`)
+            throw new Error(`${this._cls}[${this.tablename}]: conflict multiple rows on ${JSON.stringify(conditions)}`)
         }
     }
 
     // Return exactly one result, or raise an exception for zero or multiple rows.
-    async getOr404Async(filter = {}, ensureNotDeleted) {
+    async getOr404Async(filter = {}, ensureNotDeleted = true) {
         const obj = await this.getOrNullAsync(filter, ensureNotDeleted);
         if (obj === null) {
             const e = new Error();
@@ -511,9 +532,9 @@ class DbTable {
         return await func();
     }
 
-    async updateAsync(filter = {}, updated_form = {}, ensureNotDeleted) {
+    async updateAsync(conditions = {}, updated_form = {}, ensureNotDeleted = true) {
         const {dbc, tablename} = this;
-        const form = this.constructor.queryForm(filter, ensureNotDeleted);
+        const form = this.constructor.queryForm(conditions, ensureNotDeleted);
         const filter_fields = Reflect.ownKeys(form);
         const filter_values = filter_fields.map(key => form[key]);
 
@@ -545,12 +566,12 @@ class DbTable {
         }
     }
 
-    async upsertAsync(filter = {}, updated_form = {}) {
-        const item = await this.findOneAsync(filter, false);
+    async upsertAsync(conditions = {}, updated_form = {}) {
+        const item = await this.findOneAsync(conditions, false);
         let op, state, data;
         if (item === null) {
             op = 'insert';
-            data = Object.assign(filter, updated_form);
+            data = Object.assign(conditions, updated_form);
             state = await this.addAsync(data);
         } else {
             if (item.deleted) {
@@ -558,7 +579,7 @@ class DbTable {
             }
             op = 'update';
             data = Object.assign({}, item, updated_form);
-            state = await this.updateAsync(filter, updated_form, false);
+            state = await this.updateAsync(conditions, updated_form, false);
         }
         return {op, data, state}
     }
